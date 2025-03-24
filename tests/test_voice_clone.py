@@ -61,12 +61,39 @@ def test_voice_clone():
                 logging.info(f"正在生成文本: {text}")
                 wavs = chat.infer(
                     text=text,
-                    params_infer_code=chat.InferCodeParams(spk_smp=speaker_embedding)
+                    stream=False,  # 禁用流式生成
+                    split_text=False,  # 禁用文本分割
+                    use_decoder=True,  # 使用解码器
+                    do_text_normalization=True,  # 启用文本规范化
+                    do_homophone_replacement=True,  # 启用同音字替换
+                    params_infer_code=chat.InferCodeParams(
+                        spk_smp=speaker_embedding,
+                        temperature=0.3,  # 降低温度参数，使生成更稳定
+                        repetition_penalty=1.05,  # 降低重复惩罚参数
+                        max_new_token=4096,  # 增加最大token数
+                        min_new_token=1024,  # 设置最小token数
+                        top_P=0.9,  # 设置top_P参数
+                        top_K=50,  # 设置top_K参数
+                        stream_batch=48,  # 增加批处理大小
+                        stream_speed=24000,  # 增加流速度
+                        pass_first_n_batches=8  # 增加通过的批次数
+                    )
                 )
+                
+                # 检查音频数据
+                if not wavs or len(wavs) == 0:
+                    raise ValueError("生成的音频数据为空")
+                
+                wav = wavs[0]  # 取第一个音频
+                logging.info(f"音频数据长度: {len(wav)}")
+                
+                # 确保音频数据不为空且长度合适
+                if len(wav) < 1000:  # 如果音频太短，可能是生成失败
+                    raise ValueError(f"生成的音频太短: {len(wav)} 采样点")
                 
                 # 保存音频文件
                 output_path = os.path.join(output_dir, f"voice_clone_test_{i+1}.mp3")
-                data = pcm_arr_to_mp3_view(wavs[0])  # 取第一个音频
+                data = pcm_arr_to_mp3_view(wav)
                 with open(output_path, "wb") as f:
                     f.write(data)
                 logging.info(f"已保存音频文件: {output_path}")
