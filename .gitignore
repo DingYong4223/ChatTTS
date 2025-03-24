@@ -170,5 +170,8 @@ cython_debug/
 /config
 
 # inferred result
-*.wav
-*.mp3
+# *.wav
+# *.mp3
+
+# test outputs
+test_outputs/
