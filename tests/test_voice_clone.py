@@ -73,9 +73,33 @@ def test_voice_clone():
             ind = chat.dvae.vq_layer(x)
             logger.info(f"量化后形状: {ind.shape}")
             
-            # 直接使用量化后的特征，不进行维度调整
+            # 转置并重塑为 2D 张量
+            ind = ind.transpose(1, 2)  # [1, T, dim] -> [1, dim, T]
+            ind = ind.reshape(-1, ind.size(-1))  # [T, dim]
+            logger.info(f"最终形状: {ind.shape}")
+            
+            # 转换为浮点类型并计算时间维度上的平均值
+            ind = ind.float()  # 转换为浮点类型
+            ind = ind.mean(dim=0, keepdim=True)  # [1, dim]
+            logger.info(f"平均后的形状: {ind.shape}")
+            
+            # 确保数据类型为 uint16
+            ind = ind.to(torch.uint16)
+            
+            # 编码为说话人特征
             speaker_features = chat.speaker.encode_prompt(ind)
             logger.info("成功提取说话人特征")
+            
+            # 解码说话人特征以验证维度
+            decoded_features = chat.speaker.decode_prompt(speaker_features)
+            logger.info(f"解码后的说话人特征形状: {decoded_features.shape}")
+            
+            # 调整说话人特征维度
+            decoded_features = decoded_features.unsqueeze(1).expand(-1, 768, -1)  # [1, 768, dim]
+            logger.info(f"调整后的说话人特征形状: {decoded_features.shape}")
+            
+            # 更新说话人特征
+            speaker_features = chat.speaker.encode_prompt(decoded_features)
             
         except Exception as e:
             logger.error(f"提取说话人特征失败: {e}")
