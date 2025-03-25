@@ -40,7 +40,7 @@ def test_load_speaker_and_generate_audio():
     output_dir.mkdir(exist_ok=True)
     
     # 测试文本 - 分别测试中文和英文
-    test_text = "你好，这是一个测试音频。"
+    test_text = "人生,就像一杯茶,不会苦一辈子,但总会苦一阵子,总有那么一天,你会苦尽甘来,但是这个过程却是难以忍受的,真正的强者,是在落寞时仍然对生活抱有希望,对待困难的态度,决定了一个人一生的高度"
     test_text_en = "Hello, this is a test audio."
     
     # 从文件加载音色
