@@ -39,8 +39,9 @@ def test_load_speaker_and_generate_audio():
     output_dir = Path("test_outputs")
     output_dir.mkdir(exist_ok=True)
     
-    # 测试文本
-    test_text = "你好，这是一个测试音频。Hello, this is a test audio."
+    # 测试文本 - 分别测试中文和英文
+    test_text = "你好，这是一个测试音频。"
+    test_text_en = "Hello, this is a test audio."
     
     # 从文件加载音色
     speaker_save_path = output_dir / "speaker_embedding.txt"
@@ -50,15 +51,16 @@ def test_load_speaker_and_generate_audio():
     params = chat.InferCodeParams(
         spk_emb=loaded_speaker_embedding,
         manual_seed=42,  # 固定随机种子
-        temperature=0.1,  # 降低温度参数，使生成更稳定
-        top_P=0.9,  # 提高top_P值，使采样更集中
-        top_K=40,  # 增加top_K值，扩大采样范围
-        repetition_penalty=1.0  # 降低重复惩罚
+        temperature=0.3,  # 提高温度参数，增加生成多样性
+        top_P=0.95,  # 提高top_P值，使采样更集中
+        top_K=50,  # 增加top_K值，扩大采样范围
+        repetition_penalty=1.1,  # 略微提高重复惩罚
+        prompt="[speed_5]"  # 添加速度提示
     )
     
-    # 使用加载的音色生成语音
-    output_path = output_dir / "speaker_load_test.mp3"
-    wavs = chat.infer(
+    # 使用加载的音色生成中文语音
+    output_path_cn = output_dir / "speaker_load_test_cn.mp3"
+    wavs_cn = chat.infer(
         text=test_text,
         params_infer_code=params,
         split_text=False,  # 禁用文本分割
@@ -66,23 +68,47 @@ def test_load_speaker_and_generate_audio():
         do_homophone_replacement=True  # 保持同音字替换
     )
     
-    # 保存音频文件
-    if isinstance(wavs, list):
-        wavs = wavs[0]  # 如果返回多个音频，取第一个
+    # 保存中文音频文件
+    if isinstance(wavs_cn, list):
+        wavs_cn = wavs_cn[0]  # 如果返回多个音频，取第一个
     try:
-        data = pcm_arr_to_mp3_view(wavs)
-        with open(output_path, "wb") as f:
-            f.write(data)
-        logger.info(f"已保存音频文件: {output_path}")
+        data_cn = pcm_arr_to_mp3_view(wavs_cn)
+        with open(output_path_cn, "wb") as f:
+            f.write(data_cn)
+        logger.info(f"已保存中文音频文件: {output_path_cn}")
     except Exception as e:
-        logger.error(f"保存音频文件失败: {e}")
+        logger.error(f"保存中文音频文件失败: {e}")
+        raise
+    
+    # 使用加载的音色生成英文语音
+    output_path_en = output_dir / "speaker_load_test_en.mp3"
+    wavs_en = chat.infer(
+        text=test_text_en,
+        params_infer_code=params,
+        split_text=False,  # 禁用文本分割
+        do_text_normalization=True,  # 保持文本标准化
+        do_homophone_replacement=True  # 保持同音字替换
+    )
+    
+    # 保存英文音频文件
+    if isinstance(wavs_en, list):
+        wavs_en = wavs_en[0]  # 如果返回多个音频，取第一个
+    try:
+        data_en = pcm_arr_to_mp3_view(wavs_en)
+        with open(output_path_en, "wb") as f:
+            f.write(data_en)
+        logger.info(f"已保存英文音频文件: {output_path_en}")
+    except Exception as e:
+        logger.error(f"保存英文音频文件失败: {e}")
         raise
     
     # 验证输出文件是否存在和大小
-    assert output_path.exists(), f"Output file {output_path} was not created"
-    assert output_path.stat().st_size > 0, "Output file is empty"
+    assert output_path_cn.exists(), f"Output file {output_path_cn} was not created"
+    assert output_path_en.exists(), f"Output file {output_path_en} was not created"
+    assert output_path_cn.stat().st_size > 0, "Chinese output file is empty"
+    assert output_path_en.stat().st_size > 0, "English output file is empty"
     
-    logger.info(f"Test completed successfully. Output saved to {output_path}")
+    logger.info(f"Test completed successfully. Outputs saved to {output_path_cn} and {output_path_en}")
 
 if __name__ == "__main__":
     test_load_speaker_and_generate_audio() 
