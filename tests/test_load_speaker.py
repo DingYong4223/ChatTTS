@@ -1,6 +1,8 @@
 import os
 import sys
 import logging
+import torch
+import numpy as np
 from pathlib import Path
 
 # 添加项目根目录到Python路径
@@ -23,6 +25,10 @@ def test_load_speaker_and_generate_audio():
     # 设置日志
     logger = get_logger("test_load_speaker")
     
+    # 设置随机种子
+    torch.manual_seed(42)
+    np.random.seed(42)
+    
     # 初始化ChatTTS
     chat = Chat(logger)
     
@@ -40,11 +46,24 @@ def test_load_speaker_and_generate_audio():
     speaker_save_path = output_dir / "speaker_embedding.txt"
     loaded_speaker_embedding = load_speaker_embedding(speaker_save_path, logger)
     
+    # 设置生成参数
+    params = chat.InferCodeParams(
+        spk_emb=loaded_speaker_embedding,
+        manual_seed=42,  # 固定随机种子
+        temperature=0.1,  # 降低温度参数，使生成更稳定
+        top_P=0.9,  # 提高top_P值，使采样更集中
+        top_K=40,  # 增加top_K值，扩大采样范围
+        repetition_penalty=1.0  # 降低重复惩罚
+    )
+    
     # 使用加载的音色生成语音
     output_path = output_dir / "speaker_load_test.mp3"
     wavs = chat.infer(
         text=test_text,
-        params_infer_code=chat.InferCodeParams(spk_emb=loaded_speaker_embedding)
+        params_infer_code=params,
+        split_text=False,  # 禁用文本分割
+        do_text_normalization=True,  # 保持文本标准化
+        do_homophone_replacement=True  # 保持同音字替换
     )
     
     # 保存音频文件
