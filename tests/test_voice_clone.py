@@ -57,12 +57,30 @@ def test_voice_clone():
         # 提取说话人特征
         logger.info("正在提取说话人特征...")
         try:
-            # 使用随机说话人特征作为备选
-            speaker_embedding = chat.sample_random_speaker()
-            logger.info("成功生成随机说话人特征")
+            # 使用 DVAE 处理音频
+            mel = chat.dvae.preprocessor_mel(audio)
+            logger.info(f"Mel 频谱图形状: {mel.shape}")
+            
+            # 通过下采样卷积
+            x = chat.dvae.downsample_conv(mel / chat.dvae.coef.view(100, 1).expand(mel.shape))
+            logger.info(f"下采样后形状: {x.shape}")
+            
+            # 通过编码器
+            x = chat.dvae.encoder(x)
+            logger.info(f"编码后形状: {x.shape}")
+            
+            # 通过量化层
+            ind = chat.dvae.vq_layer(x)
+            logger.info(f"量化后形状: {ind.shape}")
+            
+            # 直接使用量化后的特征，不进行维度调整
+            speaker_features = chat.speaker.encode_prompt(ind)
+            logger.info("成功提取说话人特征")
+            
         except Exception as e:
-            logger.error(f"生成随机说话人特征失败: {e}")
-            return False
+            logger.error(f"提取说话人特征失败: {e}")
+            logger.info("使用随机说话人特征作为备选...")
+            speaker_features = chat.sample_random_speaker()
         
         # 测试文本
         test_texts = [
@@ -81,15 +99,15 @@ def test_voice_clone():
             
             # 设置生成参数
             params_infer_code = chat.InferCodeParams(
-                spk_emb=speaker_embedding,  # 使用说话人特征
-                temperature=0.3,  # 降低温度以获得更稳定的生成
-                top_P=0.9,       # 控制采样概率分布
-                top_K=50,        # 限制候选数量
-                max_new_token=4096,  # 增加最大token数
-                min_new_token=1024,   # 设置最小token数
-                stream_batch=48,     # 增加batch大小
+                spk_emb=speaker_features,  # 使用说话人特征
+                temperature=0.2,  # 进一步降低温度以获得更稳定的生成
+                top_P=0.8,       # 降低采样概率分布范围
+                top_K=30,        # 减少候选数量
+                max_new_token=1024,  # 进一步减小最大token数
+                min_new_token=256,   # 减小最小token数
+                stream_batch=32,     # 减小batch大小
                 stream_speed=24000,  # 保持采样率一致
-                pass_first_n_batches=8  # 增加pass batch数
+                pass_first_n_batches=4  # 减少pass batch数
             )
             
             # 生成音频
